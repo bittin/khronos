@@ -138,6 +138,9 @@ namespace Khronos {
             tag_holder.visible = false;
             event_searchbar.visible = false;
 
+            uint num = view_model.logs.get_n_items ();
+            event_searchbar.placeholder_text = num.to_string() + " " + (_("events"));
+
             timer_button.clicked.connect (() => {
                 if (start != true) {
                     start = true;
@@ -152,10 +155,10 @@ namespace Khronos {
                     });
                     timer_button.icon_name = "media-playback-pause-symbolic";
                     timer_button.tooltip_text = _("Pauses the timer for a log");
-                    timer_button.get_style_context ().add_class ("destructive-action");
+                    timer_button.add_css_class ("destructive-action");
                     add_log_button.sensitive = false;
                     stop_timer_button.visible = true;
-                    reset_button.visible = true;
+                    reset_button.visible = false;
 
                     column_entry.visible = false;
                     column_tag_entry.visible = false;
@@ -173,12 +176,12 @@ namespace Khronos {
                     }
 
                     // ...before you populate.
-                    string[] tags = column_tag_entry.text.split(":");
+                    string[] tags = column_tag_entry.text.split (":");
                     foreach (var t in tags) {
                         var build = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
                         var tagobj = new Gtk.Label (t);
                         build.append(tagobj);
-                        tag_holder.append(build);
+                        tag_holder.append (build);
                         build.add_css_class ("kh-tag");
                     }
                 } else {
@@ -186,20 +189,21 @@ namespace Khronos {
                     GLib.Source.remove(timer_id);
                     timer_button.icon_name = "media-playback-start-symbolic";
                     timer_button.tooltip_text = _("Starts the timer for a log");
-                    timer_button.get_style_context ().remove_class ("destructive-action");
+                    timer_button.remove_css_class ("destructive-action");
                     add_log_button.sensitive = true;
                     stop_timer_button.sensitive = true;
                     reset_button.sensitive = true;
+                    reset_button.visible = true;
                 }
             });
 
             stop_timer_button.clicked.connect (() => {
                 start = false;
                 dt_stop = new GLib.DateTime.now_local ();
-                GLib.Source.remove(timer_id);
+                GLib.Source.remove (timer_id);
                 timer_button.icon_name = "media-playback-start-symbolic";
                 timer_button.tooltip_text = _("Starts the timer for a log");
-                timer_button.get_style_context ().remove_class ("destructive-action");
+                timer_button.remove_css_class ("destructive-action");
                 add_log_button.sensitive = true;
                 add_log_button.visible = true;
                 reset_button.sensitive = true;
@@ -227,7 +231,6 @@ namespace Khronos {
                     controls.visible = true;
                     controls2.visible = false;
                 } else if (event_stack.get_visible_child () == logs_page) {
-                    uint num = view_model.logs.get_n_items ();
                     event_searchbar.visible = true;
                     event_searchbar.placeholder_text = num.to_string() + " " + (_("events"));
                     controls.visible = false;
@@ -235,7 +238,6 @@ namespace Khronos {
                 }
             });
 
-            this.set_size_request (360, 500);
             this.show ();
         }
 
@@ -296,12 +298,23 @@ namespace Khronos {
         [GtkCallback]
         public void on_log_removal_requested (Log log) {
             view_model.delete_log (log);
+
+            uint num = view_model.logs.get_n_items ();
+            event_searchbar.placeholder_text = num.to_string() + " " + (_("events"));
+
+            if (num == 0) {
+                view_model.delete_trash.begin (this);
+                trash_button.sensitive = false;
+            }
         }
 
         [GtkCallback]
         public void on_logs_removal_requested (Gtk.Button button) {
-            view_model.delete_trash (this);
+            view_model.delete_trash.begin (this);
             trash_button.sensitive = false;
+
+            uint num = view_model.logs.get_n_items ();
+            event_searchbar.placeholder_text = num.to_string() + " " + (_("events"));
         }
 
         public void action_export () {
@@ -332,17 +345,21 @@ namespace Khronos {
                 null
             };
 
-            //  Adw.show_about_window (this,
-            //                         "application-name", "Khronos" + Config.NAME_SUFFIX,
-            //                         "application-icon", Config.APP_ID,
-            //                         "version", Config.VERSION,
-            //                         "copyright", COPYRIGHT,
-            //                         "developers", AUTHORS,
-            //                         "designers", DESIGNERS,
-            //                         "license-type", Gtk.License.GPL_3_0,
-            //                         // TRANSLATORS: 'Name <email@domain.com>' or 'Name https://website.example'
-            //                         "translator-credits", _("translator-credits"),
-            //                         null);
+            var about = new Adw.AboutWindow ();
+	        about.application_icon = Config.APP_ID;
+            about.application_name =  "Khronos" + Config.NAME_SUFFIX;
+            about.developers = AUTHORS;
+            about.designers = DESIGNERS;
+            about.copyright = COPYRIGHT;
+            about.issue_url = "https://github.com/lainsce/khronos/issues";
+            about.license_type = Gtk.License.GPL_3_0;
+            about.version = Config.VERSION;
+            about.website = "https://github.com/lainsce/khronos";
+            // TRANSLATORS: 'Name <email@domain.com>' or 'Name https://website.example'
+            about.translator_credits = _("translator-credits");
+            about.transient_for = this.w;
+            about.present ();
+
         }
 
         public void reset_timer () {
